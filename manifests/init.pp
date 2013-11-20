@@ -57,6 +57,8 @@ class apache (
   $server_signature     = 'On',
   $trace_enable         = 'On',
   $package_ensure       = 'installed',
+  $use_canonical_name           = 'Off',
+  $use_canonical_physical_port  = 'Off',
 ) inherits ::apache::params {
   validate_bool($default_vhost)
   validate_bool($default_ssl_vhost)
