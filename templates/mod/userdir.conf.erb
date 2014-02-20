@@ -6,7 +6,7 @@
 
   <Directory "<%= @home %>/*/<%= @dir %>">
     AllowOverride FileInfo AuthConfig Limit Indexes
-    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec ExecCGI
     <Limit GET POST OPTIONS>
       Order allow,deny
       Allow from all
