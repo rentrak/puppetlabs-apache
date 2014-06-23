@@ -4,8 +4,13 @@ describe 'apache', :type => :class do
   context "on a Debian OS" do
     let :facts do
       {
+        :id                     => 'root',
+        :kernel                 => 'Linux',
+        :lsbdistcodename        => 'squeeze',
         :osfamily               => 'Debian',
+        :operatingsystem        => 'Debian',
         :operatingsystemrelease => '6',
+        :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
         :concat_basedir         => '/dne',
       }
     end
@@ -75,7 +80,7 @@ describe 'apache', :type => :class do
 
     context "with Apache version < 2.4" do
       let :params do
-        { :apache_version => 2.2 }
+        { :apache_version => '2.2' }
       end
 
       it { should contain_file("/etc/apache2/apache2.conf").with_content %r{^Include "/etc/apache2/conf\.d/\*\.conf"$} }
@@ -83,7 +88,7 @@ describe 'apache', :type => :class do
 
     context "with Apache version >= 2.4" do
       let :params do
-        { :apache_version => 2.4 }
+        { :apache_version => '2.4' }
       end
 
       it { should contain_file("/etc/apache2/apache2.conf").with_content %r{^IncludeOptional "/etc/apache2/conf\.d/\*\.conf"$} }
@@ -165,6 +170,7 @@ describe 'apache', :type => :class do
       context "13.10" do
         let :facts do
           super().merge({
+            :lsbdistrelease         => '13.10',
             :operatingsystemrelease => '13.10'
           })
         end
@@ -173,6 +179,7 @@ describe 'apache', :type => :class do
       context "12.04" do
         let :facts do
           super().merge({
+            :lsbdistrelease         => '12.04',
             :operatingsystemrelease => '12.04'
           })
         end
@@ -181,6 +188,7 @@ describe 'apache', :type => :class do
       context "13.04" do
         let :facts do
           super().merge({
+            :lsbdistrelease         => '13.04',
             :operatingsystemrelease => '13.04'
           })
         end
@@ -191,9 +199,13 @@ describe 'apache', :type => :class do
   context "on a RedHat 5 OS" do
     let :facts do
       {
+        :id                     => 'root',
+        :kernel                 => 'Linux',
         :osfamily               => 'RedHat',
+        :operatingsystem        => 'RedHat',
         :operatingsystemrelease => '5',
         :concat_basedir         => '/dne',
+        :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
       }
     end
     it { should contain_class("apache::params") }
@@ -279,7 +291,7 @@ describe 'apache', :type => :class do
 
       context "with Apache version < 2.4" do
         let :params do
-          { :apache_version => 2.2 }
+          { :apache_version => '2.2' }
         end
 
         it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^Include "/etc/httpd/conf\.d/\*\.conf"$} }
@@ -287,13 +299,13 @@ describe 'apache', :type => :class do
 
       context "with Apache version >= 2.4" do
         let :params do
-          { :apache_version => 2.4 }
+          { :apache_version => '2.4' }
         end
 
         it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^IncludeOptional "/etc/httpd/conf\.d/\*\.conf"$} }
       end
 
-      it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^Include "/etc/httpd/site\.d/\*\.conf"$} }
+      it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^Include "/etc/httpd/site\.d/\*"$} }
       it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^Include "/etc/httpd/mod\.d/\*\.conf"$} }
       it { should contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^Include "/etc/httpd/mod\.d/\*\.load"$} }
     end
@@ -472,9 +484,13 @@ describe 'apache', :type => :class do
   context "on a FreeBSD OS" do
     let :facts do
       {
+        :id                     => 'root',
+        :kernel                 => 'FreeBSD',
         :osfamily               => 'FreeBSD',
+        :operatingsystem        => 'FreeBSD',
         :operatingsystemrelease => '9',
         :concat_basedir         => '/dne',
+        :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
       }
     end
     it { should contain_class("apache::params") }
@@ -544,9 +560,13 @@ describe 'apache', :type => :class do
   context 'on all OSes' do
     let :facts do
       {
+        :id                     => 'root',
+        :kernel                 => 'Linux',
         :osfamily               => 'RedHat',
+        :operatingsystem        => 'RedHat',
         :operatingsystemrelease => '6',
         :concat_basedir         => '/dne',
+        :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
       }
     end
     context 'default vhost defaults' do

@@ -19,6 +19,7 @@
         * [Class: apache::mod::php](#class-apachemodphp)
         * [Class: apache::mod::ssl](#class-apachemodssl)
         * [Class: apache::mod::wsgi](#class-apachemodwsgi)
+        * [Class: apache::mod::fcgid](#class-apachemodfcgid)
         * [Defined Type: apache::vhost](#defined-type-apachevhost)
         * [Parameter: `directories` for apache::vhost](#parameter-directories-for-apachevhost)
         * [SSL parameters for apache::vhost](#ssl-parameters-for-apachevhost)
@@ -310,6 +311,10 @@ Sets the amount of time the server will wait for subsequent requests on a persis
 
 Sets the limit of the number of requests allowed per connection when KeepAlive is on. Defaults to '100'.
 
+#####`loadfile_name`
+
+Sets the file name for the module loadfile. Should be in the format *.load.  This can be used to set the module load order.
+
 #####`log_level`
 
 Changes the verbosity level of the error log. Defaults to 'warn'. Valid values are 'emerg', 'alert', 'crit', 'error', 'warn', 'notice', 'info', or 'debug'.
@@ -392,7 +397,7 @@ Determines whether the HTTPD service is enabled when the machine is booted. Defa
 
 #####`service_ensure`
 
-Determines whether the service should be running. Can be set to 'undef', which is useful when you want to let the service be managed by some other application like Pacemaker. Defaults to 'running'.
+Determines whether the service should be running. Valid values are true, false, 'running' or 'stopped' when Puppet should manage the service. Any other value will set ensure to false for the Apache service, which is useful when you want to let the service be managed by some other application like Pacemaker. Defaults to 'running'.
 
 #####`service_name`
 
@@ -438,7 +443,7 @@ There are many `apache::mod::[name]` classes within this module that can be decl
 * `cgid`
 * `dav`
 * `dav_fs`
-* `dav_svn`
+* `dav_svn`*
 * `deflate`
 * `dev`
 * `dir`*
@@ -549,6 +554,29 @@ Overriding the package name:
   }
 ```
 
+Overriding the default configuartion:
+```puppet
+  class {'::apache::mod::php':
+    source => 'puppet:///modules/apache/my_php.conf',
+  }
+```
+
+or 
+```puppet
+  class {'::apache::mod::php':
+    template => 'apache/php.conf.erb',
+  }
+```
+
+or
+
+```puppet
+  class {'::apache::mod::php':
+    content => '
+AddHandler php5-script .php
+AddType text/html .php',
+  }
+```
 ####Class: `apache::mod::ssl`
 
 Installs Apache SSL capabilities and uses the ssl.conf.erb template. These are the defaults:
@@ -577,6 +605,41 @@ For customized parameters, which tell Apache how Python is currently configured 
 ```
 
 More information about [WSGI](http://modwsgi.readthedocs.org/en/latest/).
+
+####Class: `apache::mod::fcgid`
+
+Installs and configures mod_fcgid.
+
+The class makes no effort to list all available options, but rather uses an options hash to allow for ultimate flexibility:
+
+```puppet
+    class { 'apache::mod::fcgid':
+      options => {
+        'FcgidIPCDir'  => '/var/run/fcgidsock',
+        'SharememPath' => '/var/run/fcgid_shm',
+        'AddHandler'   => 'fcgid-script .fcgi',
+      },
+    }
+```
+
+For a full list op options, see the [official mod_fcgid documentation](https://httpd.apache.org/mod_fcgid/mod/mod_fcgid.html).
+
+It is also possible to set the FcgidWrapper per directory per vhost. You must ensure the fcgid module is loaded because there is no auto loading.
+
+```puppet
+    include apache::mod::fcgid
+    apache::vhost { 'example.org':
+      docroot     => '/var/www/html',
+      directories => {
+        path        => '/var/www/html',
+        fcgiwrapper => {
+          command => '/usr/local/bin/fcgiwrapper',
+        }
+      },
+    }
+```
+
+See [FcgidWrapper documentation](https://httpd.apache.org/mod_fcgid/mod/mod_fcgid.html#fcgidwrapper) for more information.
 
 ####Defined Type: `apache::vhost`
 
@@ -730,7 +793,7 @@ Sets the IP address the vhost listens on. Defaults to listen on all IPs.
 
 #####`ip_based`
 
-Enables an [IP-based](httpd.apache.org/docs/current/vhosts/ip-based.html) vhost. This parameter inhibits the creation of a NameVirtualHost directive, since those are used to funnel requests to name-based vhosts. Defaults to 'false'.
+Enables an [IP-based](http://httpd.apache.org/docs/current/vhosts/ip-based.html) vhost. This parameter inhibits the creation of a NameVirtualHost directive, since those are used to funnel requests to name-based vhosts. Defaults to 'false'.
 
 #####`itk`
 
@@ -767,6 +830,10 @@ Specifies the verbosity of the error log. Defaults to 'warn' for the global serv
 #####`no_proxy_uris`
 
 Specifies URLs you do not want to proxy. This parameter is meant to be used in combination with [`proxy_dest`](#proxy_dest).
+
+#####`proxy_preserve_host`
+
+Sets the [ProxyPreserveHost Directive](http://httpd.apache.org/docs/2.2/mod/mod_proxy.html#proxypreservehost).  true Enables the Host: line from an incoming request to be proxied to the host instead of hostname .  false sets this option to off (default).
 
 #####`options`
 
@@ -1040,7 +1107,7 @@ Sets up a virtual host with a wildcard alias subdomain mapped to a directory wit
     }
 ```
 
-#####`wsgi_daemon_process`, `wsgi_daemon_process_options`, `wsgi_process_group`, & `wsgi_script_aliases`
+#####`wsgi_daemon_process`, `wsgi_daemon_process_options`, `wsgi_process_group`, `wsgi_script_aliases`, & `wsgi_pass_authorization`
 
 Set up a virtual host with [WSGI](https://code.google.com/p/modwsgi/).
 
@@ -1051,6 +1118,8 @@ Set up a virtual host with [WSGI](https://code.google.com/p/modwsgi/).
 `wsgi_process_group` sets the group ID the virtual host will run under. Defaults to 'undef'.
 
 `wsgi_script_aliases` requires a hash of web paths to filesystem .wsgi paths. Defaults to 'undef'.
+
+`wsgi_pass_authorization` the WSGI application handles authorisation instead of Apache when set to 'On'. For more information see [here] (http://modwsgi.readthedocs.org/en/latest/configuration-directives/WSGIPassAuthorization.html).  Defaults to 'undef' where apache will set the defaults setting to 'Off'.
 
 To set up a virtual host with WSGI
 
@@ -1129,7 +1198,7 @@ Sets [AddHandler](http://httpd.apache.org/docs/current/mod/mod_mime.html#addhand
 
 ######`allow`
 
-Sets an [Allow](http://httpd.apache.org/docs/2.2/mod/mod_authz_host.html#allow) directive, which groups authorizations based on hostnames or IPs. **Deprecated:** This parameter is being deprecated due to a change in Apache. It will only work with Apache 2.2 and lower. 
+Sets an [Allow](http://httpd.apache.org/docs/2.2/mod/mod_authz_host.html#allow) directive, which groups authorizations based on hostnames or IPs. **Deprecated:** This parameter is being deprecated due to a change in Apache. It will only work with Apache 2.2 and lower. You can use it as a single string for one rule or as an array for more than one.
 
 ```puppet
     apache::vhost { 'sample.example.net':
@@ -1163,35 +1232,35 @@ Sets the value for [AuthBasicAuthoritative](https://httpd.apache.org/docs/curren
 
 ######`auth_basic_fake`
 
-Sets the value for [AuthBasicFake](httpd.apache.org/docs/current/mod/mod_auth_basic.html#authbasicfake), which statically configures authorization credentials for a given directive block.
+Sets the value for [AuthBasicFake](http://httpd.apache.org/docs/current/mod/mod_auth_basic.html#authbasicfake), which statically configures authorization credentials for a given directive block.
 
 ######`auth_basic_provider`
 
-Sets the value for [AuthBasicProvider] (httpd.apache.org/docs/current/mod/mod_auth_basic.html#authbasicprovider), which sets the authentication provider for a given location.
+Sets the value for [AuthBasicProvider] (http://httpd.apache.org/docs/current/mod/mod_auth_basic.html#authbasicprovider), which sets the authentication provider for a given location.
 
 ######`auth_digest_algorithm`
 
-Sets the value for [AuthDigestAlgorithm](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestalgorithm), which selects the algorithm used to calculate the challenge and response hashes.
+Sets the value for [AuthDigestAlgorithm](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestalgorithm), which selects the algorithm used to calculate the challenge and response hashes.
 
 ######`auth_digest_domain`
 
-Sets the value for [AuthDigestDomain](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestdomain), which allows you to specify one or more URIs in the same protection space for digest authentication.
+Sets the value for [AuthDigestDomain](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestdomain), which allows you to specify one or more URIs in the same protection space for digest authentication.
 
 ######`auth_digest_nonce_lifetime`
 
-Sets the value for [AuthDigestNonceLifetime](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestnoncelifetime), which controls how long the server nonce is valid.
+Sets the value for [AuthDigestNonceLifetime](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestnoncelifetime), which controls how long the server nonce is valid.
 
 ######`auth_digest_provider`
 
-Sets the value for [AuthDigestProvider](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestprovider), which sets the authentication provider for a given location.
+Sets the value for [AuthDigestProvider](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestprovider), which sets the authentication provider for a given location.
 
 ######`auth_digest_qop`
 
-Sets the value for [AuthDigestQop](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestqop), which determines the quality-of-protection to use in digest authentication.
+Sets the value for [AuthDigestQop](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestqop), which determines the quality-of-protection to use in digest authentication.
 
 ######`auth_digest_shmem_size`
 
-Sets the value for [AuthAuthDigestShmemSize](httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestshmemsize), which defines the amount of shared memory allocated to the server for keeping track of clients.
+Sets the value for [AuthAuthDigestShmemSize](http://httpd.apache.org/docs/current/mod/mod_auth_digest.html#authdigestshmemsize), which defines the amount of shared memory allocated to the server for keeping track of clients.
 
 ######`auth_group_file`
 
@@ -1207,11 +1276,11 @@ Sets the entity name you're requiring to allow access. Read more about [Require]
 
 ######`auth_type`
 
-Sets the value for [AuthType](httpd.apache.org/docs/current/mod/mod_authn_core.html#authtype), which guides the type of user authentication.
+Sets the value for [AuthType](http://httpd.apache.org/docs/current/mod/mod_authn_core.html#authtype), which guides the type of user authentication.
 
 ######`auth_user_file`
 
-Sets the value for [AuthUserFile](httpd.apache.org/docs/current/mod/mod_authn_file.html#authuserfile), which sets the name of the text file containing the users/passwords for authentication.
+Sets the value for [AuthUserFile](http://httpd.apache.org/docs/current/mod/mod_authn_file.html#authuserfile), which sets the name of the text file containing the users/passwords for authentication.
 
 ######`custom_fragment`
 
@@ -1284,7 +1353,7 @@ Adds lines for [Header](http://httpd.apache.org/docs/current/mod/mod_headers.htm
 
 ######`index_options`
 
-Allows configuration settings for [directory indexing](httpd.apache.org/docs/current/mod/mod_autoindex.html#indexoptions).
+Allows configuration settings for [directory indexing](http://httpd.apache.org/docs/current/mod/mod_autoindex.html#indexoptions).
 
 ```puppet
     apache::vhost { 'sample.example.net':
@@ -1316,7 +1385,7 @@ Sets the [default ordering](http://httpd.apache.org/docs/current/mod/mod_autoind
 
 ######`options`
 
-Lists the [Options](httpd.apache.org/docs/current/mod/core.html#options) for the given Directory block.
+Lists the [Options](http://httpd.apache.org/docs/current/mod/core.html#options) for the given Directory block.
 
 ```puppet
     apache::vhost { 'sample.example.net':

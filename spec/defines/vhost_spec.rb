@@ -20,6 +20,10 @@ describe 'apache::vhost', :type => :define do
           :osfamily               => 'RedHat',
           :operatingsystemrelease => '6',
           :concat_basedir         => '/dne',
+          :operatingsystem        => 'RedHat',
+          :id                     => 'root',
+          :kernel                 => 'Linux',
+          :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
         }
       end
       let :params do default_params end
@@ -33,6 +37,11 @@ describe 'apache::vhost', :type => :define do
           :osfamily               => 'Debian',
           :operatingsystemrelease => '6',
           :concat_basedir         => '/dne',
+          :lsbdistcodename        => 'squeeze',
+          :operatingsystem        => 'Debian',
+          :id                     => 'root',
+          :kernel                 => 'Linux',
+          :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
         }
       end
       let :params do default_params end
@@ -55,6 +64,10 @@ describe 'apache::vhost', :type => :define do
           :osfamily               => 'FreeBSD',
           :operatingsystemrelease => '9',
           :concat_basedir         => '/dne',
+          :operatingsystem        => 'FreeBSD',
+          :id                     => 'root',
+          :kernel                 => 'FreeBSD',
+          :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
         }
       end
       let :params do default_params end
@@ -73,6 +86,11 @@ describe 'apache::vhost', :type => :define do
         :osfamily               => 'Debian',
         :operatingsystemrelease => '6',
         :concat_basedir         => '/dne',
+        :lsbdistcodename        => 'squeeze',
+        :operatingsystem        => 'Debian',
+        :id                     => 'root',
+        :kernel                 => 'Linux',
+        :path                   => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
       }
     end
     describe 'basic assumptions' do
@@ -608,6 +626,18 @@ describe 'apache::vhost', :type => :define do
           :match => [/^  WSGIApplicationGroup %{GLOBAL}$/],
         },
         {
+          :title => 'should set wsgi pass authorization',
+          :attr  => 'wsgi_pass_authorization',
+          :value => 'On',
+          :match => [/^  WSGIPassAuthorization On$/],
+        },
+        {
+          :title => 'should set wsgi pass authorization false',
+          :attr  => 'wsgi_pass_authorization',
+          :value => 'Off',
+          :match => [/^  WSGIPassAuthorization Off$/],
+        },
+        {
           :title => 'should contain environment variables',
           :attr  => 'access_log_env_var',
           :value => 'admin',
@@ -788,7 +818,7 @@ describe 'apache::vhost', :type => :define do
         describe "when #{param[:attr]} is #{param[:value]}" do
           let :params do default_params.merge({
             param[:attr].to_sym => param[:value],
-            :apache_version => 2.2,
+            :apache_version => '2.2',
           }) end
 
           it { should contain_file("25-#{title}.conf").with_mode('0644') }
@@ -925,7 +955,7 @@ describe 'apache::vhost', :type => :define do
         describe "when #{param[:attr]} is #{param[:value]}" do
           let :params do default_params.merge({
             param[:attr].to_sym => param[:value],
-            :apache_version => 2.4,
+            :apache_version => '2.4',
           }) end
 
           it { should contain_file("25-#{title}.conf").with_mode('0644') }
@@ -1265,6 +1295,42 @@ describe 'apache::vhost', :type => :define do
           it { should contain_file("10-#{title}.conf").with_path(
             /10-#{title}.conf/
           ) }
+        end
+      end
+
+      describe 'fcgid directory options' do
+        describe 'No fcgiwrapper' do
+          let :params do
+            default_params.merge({
+              :directories      => { 'path' => '/srv/www' },
+            })
+          end
+
+          it { should_not contain_file("25-#{title}.conf").with_content(%r{FcgidWrapper}) }
+        end
+
+        describe 'Only a command' do
+          let :params do
+            default_params.merge({
+              :directories      => { 'path' => '/srv/www',
+                'fcgiwrapper' => { 'command' => '/usr/local/bin/fcgiwrapper' },
+              }
+            })
+          end
+
+          it { should contain_file("25-#{title}.conf").with_content(%r{^    FcgidWrapper /usr/local/bin/fcgiwrapper  $}) }
+        end
+
+        describe 'All parameters' do
+          let :params do
+            default_params.merge({
+              :directories    => { 'path' => '/srv/www',
+                'fcgiwrapper' => { 'command' => '/usr/local/bin/fcgiwrapper', 'suffix' => '.php', 'virtual' => 'virtual' },
+              }
+            })
+          end
+
+          it { should contain_file("25-#{title}.conf").with_content(%r{^    FcgidWrapper /usr/local/bin/fcgiwrapper .php virtual$}) }
         end
       end
 

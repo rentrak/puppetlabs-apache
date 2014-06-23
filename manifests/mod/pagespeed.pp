@@ -32,10 +32,11 @@ class apache::mod::pagespeed (
   $allow_pagespeed_message       = [],
   $message_buffer_size           = 100000,
   $additional_configuration      = {},
+  $apache_version                = $::apache::apache_version,
 ){
 
   $_lib = $::apache::apache_version ? {
-    2.4     => 'mod_pagespeed_ap24.so',
+    '2.4'   => 'mod_pagespeed_ap24.so',
     default => undef
   }
 
