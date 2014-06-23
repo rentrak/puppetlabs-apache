@@ -16,6 +16,7 @@
         * [Defined Type: apache::mod](#defined-type-apachemod)
         * [Classes: apache::mod::*](#classes-apachemodname)
         * [Class: apache::mod::pagespeed](#class-apachemodpagespeed)
+        * [Class: apache::mod::php](#class-apachemodphp)
         * [Class: apache::mod::ssl](#class-apachemodssl)
         * [Class: apache::mod::wsgi](#class-apachemodwsgi)
         * [Defined Type: apache::vhost](#defined-type-apachevhost)
@@ -305,9 +306,21 @@ Enables persistent connections.
 
 Sets the amount of time the server will wait for subsequent requests on a persistent connection. Defaults to '15'.
 
+#####`max_keepalive_requests`
+
+Sets the limit of the number of requests allowed per connection when KeepAlive is on. Defaults to '100'.
+
 #####`log_level`
 
 Changes the verbosity level of the error log. Defaults to 'warn'. Valid values are 'emerg', 'alert', 'crit', 'error', 'warn', 'notice', 'info', or 'debug'.
+
+#####`log_formats`
+
+Define additional [LogFormats](https://httpd.apache.org/docs/current/mod/mod_log_config.html#logformat). This is done in a Hash:
+
+```puppet
+  $log_formats = { vhost_common => '%v %h %l %u %t \"%r\" %>s %b' }
+```
 
 #####`logroot`
 
@@ -459,6 +472,7 @@ There are many `apache::mod::[name]` classes within this module that can be decl
 * `rewrite`
 * `rpaf`*
 * `setenvif`
+* `speling`
 * `ssl`* (see [`apache::mod::ssl`](#class-apachemodssl) below)
 * `status`*
 * `suphp`
@@ -522,6 +536,18 @@ These are the defaults:
 ```
 
 Full documentation for mod_pagespeed is available from [Google](http://modpagespeed.com).
+
+####Class: `apache::mod::php`
+
+Installs and configures mod_php. The defaults are OS-dependant.
+
+Overriding the package name:
+```
+  class {'::apache::mod::php':
+    package_name => "php54-php",
+    path         => "${::apache::params::lib_path}/libphp54-php5.so",
+  }
+```
 
 ####Class: `apache::mod::ssl`
 
@@ -652,6 +678,10 @@ Sets group access to the docroot directory. Defaults to 'root'.
 #####`docroot_owner`
 
 Sets individual user access to the docroot directory. Defaults to 'root'.
+
+#####`docroot_mode`
+
+Sets access permissions of the docroot directory. Defaults to 'undef'.
 
 #####`error_log`
 
@@ -906,7 +936,7 @@ Multiple rewrites and conditions are also possible
           rewrite_cond => ['%{HTTP_USER_AGENT} ^MSIE'],
           rewrite_rule => ['^index\.html$ /index.IE.html [L]'],
         },
-        }
+        {
           rewrite_base => /apps/,
           rewrite_rule => ['^index\.cgi$ index.php', '^index\.html$ index.php', '^index\.asp$ index.html'],
         },
@@ -1314,6 +1344,21 @@ Sets the order of processing Allow and Deny statements as per [Apache core docum
     }
 ```
 
+######`sethandler`
+
+Sets a `SetHandler` directive as per the [Apache Core documentation](http://httpd.apache.org/docs/2.2/mod/core.html#sethandler). An example:
+
+```puppet
+    apache::vhost { 'sample.example.net':
+      docroot     => '/path/to/directory',
+      directories => [ 
+        { path       => '/path/to/directory', 
+          sethandler => 'None', 
+        }
+      ],
+    }
+```
+
 ######`passenger_enabled`
 
 Sets the value for the [PassengerEnabled](http://www.modrails.com/documentation/Users%20guide%20Apache.html#PassengerEnabled) directory to 'on' or 'off'. Requires `apache::mod::passenger` to be included.
@@ -1555,7 +1600,7 @@ Configure a vhost to redirect non-SSL connections to SSL
       servername      => 'sixteenth.example.com',
       port            => '80',
       docroot         => '/var/www/sixteenth',
-      redirect_status => 'permanent'
+      redirect_status => 'permanent',
       redirect_dest   => 'https://sixteenth.example.com/'
     }
     apache::vhost { 'sixteenth.example.com ssl':
@@ -1776,11 +1821,50 @@ The Apache module relies heavily on templates to enable the `vhost` and `apache:
 
 The `apache::vhost::WSGIImportScript` parameter creates a statement inside the VirtualHost which is unsupported on older versions of Apache, causing this to fail.  This will be remedied in a future refactoring.
 
+###RHEL/CentOS 5
+
+The `apache::mod::passenger` and `apache::mod::proxy_html` classes are untested since repositories are missing compatible packages.   
+
+###RHEL/CentOS 7
+
+The `apache::mod::passenger` class is untested as the repository does not have packages for EL7 yet.  The fact that passenger packages aren't available also makes us unable to test the `rack_base_uri` parameter in `apache::vhost`.
+
 ###General
 
-This module is CI tested on Centos 5 & 6, Ubuntu 12.04, Debian 7, and RHEL 5 & 6 platforms against both the OSS and Enterprise version of Puppet. 
+This module is CI tested on Centos 5 & 6, Ubuntu 12.04 & 14.04, Debian 7, and RHEL 5, 6 & 7 platforms against both the OSS and Enterprise version of Puppet. 
 
 The module contains support for other distributions and operating systems, such as FreeBSD and Amazon Linux, but is not formally tested on those and regressions may occur.
+
+###SELinux and Custom Paths
+
+If you are running with SELinux in enforcing mode and want to use custom paths for your `logroot`, `mod_dir`, `vhost_dir`, and `docroot`, you will need to manage the context for the files yourself.
+
+Something along the lines of:
+
+```puppet
+        exec { 'set_apache_defaults':
+          command => 'semanage fcontext -a -t httpd_sys_content_t "/custom/path(/.*)?"',
+          path    => '/bin:/usr/bin/:/sbin:/usr/sbin',
+          require => Package['policycoreutils-python'],
+        }
+        package { 'policycoreutils-python': ensure => installed }
+        exec { 'restorecon_apache':
+          command => 'restorecon -Rv /apache_spec',
+          path    => '/bin:/usr/bin/:/sbin:/usr/sbin',
+          before  => Service['httpd'],
+          require => Class['apache'],
+        }
+        class { 'apache': }
+        host { 'test.server': ip => '127.0.0.1' }
+        file { '/custom/path': ensure => directory, }
+        file { '/custom/path/include': ensure => present, content => '#additional_includes' }
+        apache::vhost { 'test.server':
+          docroot             => '/custom/path',
+          additional_includes => '/custom/path/include',
+        }
+```
+
+You need to set the contexts using `semanage fcontext` not `chcon` because `file {...}` resources will reset the context to the values in the database if the resource isn't specifying the context.
 
 ##Development
 
