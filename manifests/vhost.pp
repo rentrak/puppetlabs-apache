@@ -258,17 +258,17 @@ define apache::vhost(
     include ::apache::mod::suexec
   }
 
-  # This ensures that the docroot exists
-  # But enables it to be specified across multiple vhost resources
-  if ! defined(File[$docroot]) {
-    file { $docroot:
-      ensure  => directory,
-      owner   => $docroot_owner,
-      group   => $docroot_group,
-      mode    => $docroot_mode,
-      require => Package['httpd'],
-    }
-  }
+  # # This ensures that the docroot exists
+  # # But enables it to be specified across multiple vhost resources
+  # if ! defined(File[$docroot]) {
+  #   file { $docroot:
+  #     ensure  => directory,
+  #     owner   => $docroot_owner,
+  #     group   => $docroot_group,
+  #     mode    => $docroot_mode,
+  #     require => Package['httpd'],
+  #   }
+  # }
 
   # Same as above, but for logroot
   if ! defined(File[$logroot]) {
@@ -535,7 +535,7 @@ define apache::vhost(
     mode    => '0644',
     require => [
       Package['httpd'],
-      File[$docroot],
+      # File[$docroot],
       File[$logroot],
     ],
     notify  => Service['httpd'],
